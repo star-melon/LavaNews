@@ -30,7 +30,7 @@ async function callOllama(prompt: string, timeoutMs = 90_000): Promise<string> {
         model: MODEL,
         prompt,
         stream: false,
-        options: { temperature: 0.2, num_predict: 512 },
+        options: { temperature: 0.1, top_p: 0.9, num_predict: 512 },
       }),
       signal: ctrl.signal,
     });
@@ -58,9 +58,34 @@ function parseNumberedOutput(raw: string, expected: number): string[] {
 async function translateBatch(texts: string[]): Promise<string[]> {
   if (texts.length === 0) return [];
   const numbered = texts.map((t, i) => `${i + 1}. ${t}`).join('\n');
-  const prompt = `你是一个中英新闻翻译助手。把以下英文新闻文本翻译成简洁自然的中文，保留专有名词（公司、产品、人名）原文。只输出译文，格式严格保持编号列表，不要解释、不要重复原文。
 
-${numbered}`;
+  // Hallucination-resistant prompt:
+  // - few-shot demonstrates preservation of proper nouns
+  // - explicit rule against substituting/adding named entities
+  // - instruction to keep untranslatable names in Latin script
+  const prompt = `你是严格忠于原文的新闻翻译。把每条英文标题或摘要翻译成简洁中文。
+
+【铁律】
+1. 禁止改写、替换、增加或删除任何专有名词（人名、国家、城市、公司、机构、产品、球队、政府部门）。原文写的是什么就是什么。
+2. 译名不确定时，保留英文原文，不要臆造中文。
+3. 原文没说的内容一律不加。禁止补充背景、国籍、地点。
+4. 只输出译文，保持编号列表格式，不解释，不重复英文原文。
+
+【示例】
+输入：
+1. Real Madrid vs Alaves: La Liga preview
+2. The NSA is using Anthropic's Mythos model
+3. Rumen Radev's party wins Bulgarian election
+输出：
+1. Real Madrid 对阵 Alaves：西甲赛前预览
+2. NSA 正在使用 Anthropic 的 Mythos 模型
+3. Rumen Radev 的政党赢得保加利亚大选
+
+【现在翻译】
+输入：
+${numbered}
+输出：
+`;
   const raw = await callOllama(prompt);
   return parseNumberedOutput(raw, texts.length);
 }
