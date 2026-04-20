@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Channel {
+  id             String          @id @default(cuid())
+  domain         String          @unique  // e.g. "reuters.com"
+  name           String          // display name, e.g. "路透社"
+  tier           Int             // 1=权威, 2=主流, 3=一般
+  region         String          // "cn" or "intl"
+  hue            String          @default("#1A1A1A")  // brand color hex
+  articles       Article[]
+  timelineEvents TimelineEvent[]
+
+  @@index([tier])
+  @@index([region])
+}
+
+model EventGroup {
+  id                 String    @id @default(cuid())
+  category           String    @default("综合")  // 宏观/科技/地缘/市场/能源/公司
+  representativeTitle String
+  sourceCount        Int       @default(0)
+  articleCount       Int       @default(0)
+  firstSeen          DateTime  @default(now())
+  lastUpdated        DateTime  @default(now())
+  firstSeenDisplay   String    @default("")  // display string, e.g. "06:12"
+  updatedMin         Int       @default(0)   // minutes since first seen
+  articles           Article[]
+  timelineEvents     TimelineEvent[]
+
+  @@index([sourceCount(sort: Desc)])
+  @@index([lastUpdated(sort: Desc)])
+}
+
+model Article {
+  id          String     @id @default(cuid())
+  title       String
+  url         String     @unique
+  source      String
+  sourceName  String     @default("")
+  summary     String     @default("")
+  imageUrl    String     @default("")
+  publishedAt DateTime
+  groupId     String?
+  group       EventGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  channelId   String?
+  channel     Channel?   @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@index([publishedAt(sort: Desc)])
+  @@index([groupId])
+  @@index([source])
+}
+
+model TimelineEvent {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     EventGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  channelId String?
+  channel   Channel?  @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  timeDisplay String  // e.g. "06:12" or "昨21:40"
+  note      String   @default("")  // e.g. "首发：彭博终端"
+  sortOrder Int      @default(0)
+
+  @@index([groupId, sortOrder])
+}

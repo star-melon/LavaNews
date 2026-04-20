@@ -1,0 +1,95 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build output
+.next/
+out/
+build/
+dist/
+
+# Environment files (contain secrets: GNEWS_API_KEY, etc.)
+.env
+.env.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+!.env.example
+
+# Database
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Deployment secrets (contain auth key / server details)
+nginx.conf
+lavanews-proxy.conf
+deploy.sh
+docker-compose.override.yml
+
+# SSH / certificates / keys
+*.pem
+*.key
+*.crt
+*.cer
+*.pfx
+*.p12
+id_rsa
+id_rsa.pub
+known_hosts
+certbot/
+certs/
+ssl/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Next.js / TypeScript
+next-env.d.ts
+*.tsbuildinfo
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp / backups
+*.bak
+*.tmp
+*.orig
+tmp/
+temp/
+
+# Session / review artifacts
+BUG-REVIEW.md
+docs/session-summary.md
+docs/superpowers/
+
+# Original prototype (large single-file HTML, not source of truth)
+LavaNews.html
