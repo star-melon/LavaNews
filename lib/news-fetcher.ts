@@ -11,8 +11,21 @@ const parser = new Parser({
   },
 });
 
-// RSS feed sources mapped to LavaNews channels
-interface FeedInfo { domain: string; name: string; url: string }
+// RSS feed sources mapped to LavaNews channels.
+// category: if set, events created/joined from this feed are tagged with it
+// tier: channel tier (1=权威, 2=主流, 3=一般); default 2 when auto-created
+interface FeedInfo {
+  domain: string;
+  name: string;
+  url: string;
+  category?: string;
+  tier?: number;
+  hue?: string;
+  // When true, only items whose title matches AI_KEYWORDS are ingested
+  // (and auto-tagged as AI). Used for general-tech feeds that would otherwise
+  // flood the app with unrelated items.
+  aiOnly?: boolean;
+}
 
 const RSS_FEEDS: FeedInfo[] = [
   { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', domain: 'bbc.co.uk', name: 'BBC News' },
@@ -23,19 +36,42 @@ const RSS_FEEDS: FeedInfo[] = [
   { url: 'http://rss.cnn.com/rss/edition.rss', domain: 'cnn.com', name: 'CNN' },
   { url: 'https://www.aljazeera.com/xml/rss/all.xml', domain: 'aljazeera.com', name: '半岛电视台' },
   { url: 'https://news.google.com/rss?hl=zh-CN&gl=CN&ceid=CN:zh-Hans', domain: 'news.google.com', name: 'Google 新闻' },
+
+  // --- AI 板块（显式 AI 源）---
+  { url: 'https://techcrunch.com/category/artificial-intelligence/feed/', domain: 'techcrunch.com', name: 'TechCrunch AI', category: 'AI', tier: 2, hue: '#0A9B4A' },
+  { url: 'https://www.theverge.com/rss/ai-artificial-intelligence/index.xml', domain: 'theverge.com', name: 'The Verge AI', category: 'AI', tier: 2, hue: '#E5127D' },
+  { url: 'https://venturebeat.com/category/ai/feed/', domain: 'venturebeat.com', name: 'VentureBeat AI', category: 'AI', tier: 2, hue: '#FF4A00' },
+  { url: 'https://www.technologyreview.com/feed/', domain: 'technologyreview.com', name: 'MIT 科技评论', category: 'AI', tier: 1, hue: '#D71920' },
+  { url: 'https://www.wired.com/feed/tag/ai/latest/rss', domain: 'wired.com', name: 'Wired AI', category: 'AI', tier: 2, hue: '#000000' },
+  { url: 'https://news.google.com/rss/search?q=%22Claude+Opus%22+OR+%22Claude+Sonnet%22+OR+%22GPT-5%22+OR+%22Gemini+3%22+OR+Anthropic+OR+OpenAI&hl=en-US&gl=US&ceid=US:en', domain: 'googlenews-ai', name: 'Google News · AI', category: 'AI', tier: 3, hue: '#4285F4' },
+
+  // --- 通用科技/综合源（只抓命中 AI 关键词的条目，自动归入 AI 板块）---
+  { url: 'https://www.cnbc.com/id/19854910/device/rss/rss.html', domain: 'cnbc.com', name: 'CNBC Tech', tier: 2, hue: '#005EB8', aiOnly: true },
+  { url: 'https://hnrss.org/frontpage', domain: 'news.ycombinator.com', name: 'Hacker News', tier: 3, hue: '#FF6600', aiOnly: true },
+  { url: 'https://techcrunch.com/feed/', domain: 'techcrunch.com', name: 'TechCrunch', tier: 2, hue: '#0A9B4A', aiOnly: true },
 ];
 
+// Auto-classify to AI when title matches these terms (case-insensitive).
+// Keeps general-tech feeds contributing to the AI section for major LLM releases.
+const AI_KEYWORDS = /\b(claude|anthropic|opus\s?4|sonnet\s?4|haiku\s?4|gpt-?[45]|openai|chatgpt|gemini|grok|llama|mistral|deepseek|qwen|mythos|llm|large\s+language\s+model|artificial\s+intelligence|machine\s+learning)\b/i;
+
+function resolveCategory(feed: FeedInfo, title: string): string | undefined {
+  if (feed.category) return feed.category;
+  if (AI_KEYWORDS.test(title)) return 'AI';
+  return undefined;
+}
+
 // Fallback: auto-register channels from RSS domains if not in DB
-async function ensureChannel(domain: string, name: string) {
+async function ensureChannel(domain: string, name: string, tier = 2, hue = '#4A4A4A') {
   let channel = await prisma.channel.findUnique({ where: { domain } });
   if (!channel) {
     channel = await prisma.channel.create({
       data: {
         domain,
         name,
-        tier: 2,
+        tier,
         region: domain.endsWith('.cn') || domain === 'news.google.com' ? 'cn' : 'intl',
-        hue: '#4A4A4A',
+        hue,
       },
     });
   }
@@ -78,14 +114,17 @@ interface PendingGroup {
 
   for (const feed of RSS_FEEDS) {
     try {
-      const channel = await ensureChannel(feed.domain, feed.name);
+      const channel = await ensureChannel(feed.domain, feed.name, feed.tier, feed.hue);
       const rssFeed = await parser.parseURL(feed.url);
 
-      for (const item of rssFeed.items.slice(0, 10)) {
+      for (const item of rssFeed.items.slice(0, 25)) {
         if (!item.title || !item.link) continue;
         if (existingUrls.has(item.link)) continue;
 
-        const groupId = await findOrCreateGroup(item.title);
+        // Keep aiOnly feeds (CNBC/HN/TechCrunch general) from flooding with non-AI chatter.
+        if (feed.aiOnly && !AI_KEYWORDS.test(item.title)) continue;
+
+        const groupId = await findOrCreateGroup(item.title, resolveCategory(feed, item.title));
 
         if (!channelCovered.has(groupId)) channelCovered.set(groupId, new Set());
         const covered = channelCovered.get(groupId)!;

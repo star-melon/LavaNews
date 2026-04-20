@@ -15,6 +15,37 @@ function toLocalDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Full first-seen timestamp (local): "2026-04-16 05:24"
+function formatFirstSeen(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Compact variant for dense list rows: "04-16 05:24"
+function formatFirstSeenShort(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Humanize a "minutes ago" integer into the largest sensible unit.
+function formatAgo(min: number): string {
+  if (min < 1) return '刚刚';
+  if (min < 60) return `${min} 分钟前`;
+  const hours = Math.floor(min / 60);
+  if (hours < 24) return `${hours} 小时前`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days} 天前`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 5) return `${weeks} 周前`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} 个月前`;
+  return `${Math.floor(days / 365)} 年前`;
+}
+
 // --- Shared Components ---
 function ChannelChip({ channel, size = '' }: { channel: Channel; size?: string }) {
   const letter = channel.name.slice(0, 1);
@@ -283,7 +314,7 @@ function FeedPane({
                 display: 'flex', alignItems: 'center', gap: 10,
                 fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)', marginTop: 5,
               }}>
-                <span>{s.firstSeenDisplay}</span><span>·</span>
+                <span>{formatFirstSeenShort(s.firstSeen)}</span><span>·</span>
                 <span>T1·<b style={{ color: 'var(--claret)' }}>{s.meta.t1}</b> T2·{s.meta.t2} T3·{s.meta.t3}</span><span>·</span>
                 <span>Σ{s.meta.total}</span>
               </div>
@@ -642,7 +673,7 @@ export default function Home() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <span className="kicker claret">{selected.category}</span>
                   <span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                    首发 {selected.firstSeenDisplay} · {selected.updatedMin}分前
+                    首发 {formatFirstSeen(selected.firstSeen)} · {formatAgo(selected.updatedMin)}
                   </span>
                 </div>
                 <h1 style={{
@@ -666,7 +697,7 @@ export default function Home() {
                     { l: 'T2 主流', v: selected.meta.t2, sub: '×2' },
                     { l: 'T3 一般', v: selected.meta.t3, sub: '×1' },
                     { l: 'TOTAL', v: selected.meta.total, sub: '渠道' },
-                    { l: 'FIRST SEEN', v: selected.firstSeenDisplay, sub: '' },
+                    { l: 'FIRST SEEN', v: formatFirstSeenShort(selected.firstSeen), sub: '' },
                   ].map((x, i) => (
                     <div key={i} style={{ padding: '14px 16px', borderRight: i < 5 ? '1px solid var(--rule)' : 'none' }}>
                       <div style={{ fontFamily: 'var(--sans)', fontSize: 10, letterSpacing: 0.4, color: 'var(--ink-3)', marginBottom: 6 }}>{x.l}</div>

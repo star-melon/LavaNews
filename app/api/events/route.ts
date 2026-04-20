@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 import type { EventStory, Channel, TimelineEntry, ScoreMeta } from '@/lib/types';
 import { computeScoreMeta, computeScore } from '@/lib/scoring';
 
-const VALID_CATEGORIES = new Set(['宏观', '科技', '地缘', '市场', '能源', '公司', '综合']);
+const VALID_CATEGORIES = new Set(['宏观', '科技', 'AI', '地缘', '市场', '能源', '公司', '综合']);
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -80,17 +80,27 @@ export async function GET(request: Request) {
       channel: a.channel,
     }));
 
+    // Use the earliest article publishedAt as the event's true "首发" time,
+    // falling back to the group's own firstSeen (DB insert time) if no articles.
+    const earliestMs = group.articles.length > 0
+      ? Math.min(...group.articles.map(a => a.publishedAt.getTime()))
+      : group.firstSeen.getTime();
+    const latestMs = group.articles.length > 0
+      ? Math.max(...group.articles.map(a => a.publishedAt.getTime()))
+      : group.lastUpdated.getTime();
+    const updatedMin = Math.max(0, Math.round((Date.now() - earliestMs) / 60000));
+
     return {
       id: group.id,
       category: group.category,
       title: group.representativeTitle,
       summary: articles[0]?.summary || '',
       firstSeenDisplay: group.firstSeenDisplay,
-      updatedMin: group.updatedMin,
+      updatedMin,
       sourceCount: group.sourceCount,
       articleCount: group.articleCount,
-      firstSeen: group.firstSeen.toISOString(),
-      lastUpdated: group.lastUpdated.toISOString(),
+      firstSeen: new Date(earliestMs).toISOString(),
+      lastUpdated: new Date(latestMs).toISOString(),
       channels: uniqueChannels,
       timeline,
       articles,

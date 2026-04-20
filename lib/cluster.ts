@@ -83,16 +83,16 @@ interface ExistingEvent {
   title: string;
 }
 
-export async function findOrCreateGroup(title: string): Promise<string> {
+export async function findOrCreateGroup(title: string, category?: string): Promise<string> {
   const allEvents = await prisma.eventGroup.findMany({
-    select: { id: true, representativeTitle: true },
+    select: { id: true, representativeTitle: true, category: true },
     orderBy: { lastUpdated: 'desc' },
     take: 200,
   });
 
   if (allEvents.length === 0) {
     const group = await prisma.eventGroup.create({
-      data: { representativeTitle: title },
+      data: { representativeTitle: title, ...(category ? { category } : {}) },
     });
     return group.id;
   }
@@ -106,6 +106,12 @@ export async function findOrCreateGroup(title: string): Promise<string> {
   const best = scores.reduce((a, b) => (a.score > b.score ? a : b));
 
   if (best.score >= 0.4) {
+    if (category) {
+      const existing = allEvents.find(e => e.id === best.id);
+      if (existing && existing.category === '综合') {
+        await prisma.eventGroup.update({ where: { id: best.id }, data: { category } });
+      }
+    }
     return best.id;
   }
 
@@ -125,12 +131,18 @@ export async function findOrCreateGroup(title: string): Promise<string> {
   }
 
   if (bestCosine >= 0.3) {
+    if (category) {
+      const existing = allEvents.find(e => e.id === bestId);
+      if (existing && existing.category === '综合') {
+        await prisma.eventGroup.update({ where: { id: bestId }, data: { category } });
+      }
+    }
     return bestId;
   }
 
   // Create new event
   const group = await prisma.eventGroup.create({
-    data: { representativeTitle: title },
+    data: { representativeTitle: title, ...(category ? { category } : {}) },
   });
   return group.id;
 }

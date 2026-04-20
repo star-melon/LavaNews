@@ -61,6 +61,14 @@ coverage/
 .nyc_output/
 playwright-report/
 test-results/
+.playwright-mcp/
+
+# Claude Code local state
+.claude/
+
+# Local verification screenshots
+ai-section-verified.png
+*.screenshot.png
 
 # Next.js / TypeScript
 next-env.d.ts
