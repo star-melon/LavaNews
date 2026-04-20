@@ -121,14 +121,16 @@ export async function translatePendingArticles(maxArticles = 200): Promise<Trans
 }
 
 // Best-effort health check — returns true if LibreTranslate is reachable
-// and the en→zh language pair is loaded.
+// and an EN→ZH pair is loaded. LibreTranslate advertises Chinese as
+// either "zh" or "zh-Hans" depending on version, so we accept either.
 export async function translatorHealthy(): Promise<boolean> {
   try {
     const res = await fetch(`${TRANSLATE_URL}/languages`, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) return false;
     const langs = (await res.json()) as { code: string; targets?: string[] }[];
     const en = langs.find(l => l.code === 'en');
-    return !!en && Array.isArray(en.targets) && en.targets.includes('zh');
+    if (!en || !Array.isArray(en.targets)) return false;
+    return en.targets.some(t => t === 'zh' || t.startsWith('zh'));
   } catch {
     return false;
   }
