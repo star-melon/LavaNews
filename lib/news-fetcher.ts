@@ -17,10 +17,10 @@ interface FeedInfo { domain: string; name: string; url: string }
 const RSS_FEEDS: FeedInfo[] = [
   { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', domain: 'bbc.co.uk', name: 'BBC News' },
   { url: 'https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml', domain: 'nytimes.com', name: '纽约时报' },
-  { url: 'https://feeds.reuters.com/reuters/topNews', domain: 'reuters.com', name: '路透社' },
+  { url: 'https://news.google.com/rss/search?q=site:reuters.com&hl=en-US&gl=US&ceid=US:en', domain: 'reuters.com', name: '路透社' },
   { url: 'https://www.theguardian.com/world/rss', domain: 'theguardian.com', name: '卫报' },
   { url: 'https://www.nbcnews.com/feed', domain: 'nbcnews.com', name: 'NBC News' },
-  { url: 'https://rss.cnn.com/rss/edition.rss', domain: 'cnn.com', name: 'CNN' },
+  { url: 'http://rss.cnn.com/rss/edition.rss', domain: 'cnn.com', name: 'CNN' },
   { url: 'https://www.aljazeera.com/xml/rss/all.xml', domain: 'aljazeera.com', name: '半岛电视台' },
   { url: 'https://news.google.com/rss?hl=zh-CN&gl=CN&ceid=CN:zh-Hans', domain: 'news.google.com', name: 'Google 新闻' },
 ];
