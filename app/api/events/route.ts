@@ -73,12 +73,18 @@ export async function GET(request: Request) {
     const articles = group.articles.map(a => ({
       id: a.id,
       title: a.title,
+      titleZh: a.titleZh,
       source: a.source,
       sourceName: a.sourceName,
       url: a.url,
       summary: a.summary,
+      summaryZh: a.summaryZh,
       channel: a.channel,
     }));
+
+    // Prefer any translated article title/summary to surface at the event level.
+    const firstZhTitle = articles.find(a => a.titleZh)?.titleZh || '';
+    const firstZhSummary = articles.find(a => a.summaryZh)?.summaryZh || '';
 
     // Use the earliest article publishedAt as the event's true "首发" time,
     // falling back to the group's own firstSeen (DB insert time) if no articles.
@@ -94,7 +100,9 @@ export async function GET(request: Request) {
       id: group.id,
       category: group.category,
       title: group.representativeTitle,
+      titleZh: firstZhTitle,
       summary: articles[0]?.summary || '',
+      summaryZh: firstZhSummary,
       firstSeenDisplay: group.firstSeenDisplay,
       updatedMin,
       sourceCount: group.sourceCount,

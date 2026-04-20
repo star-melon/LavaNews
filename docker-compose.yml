@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: lavanews-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    expose:
+      - "11434"
+    networks:
+      - lavanews-net
+    # Cap memory so a runaway model can't OOM the 8GB box.
+    # Qwen2.5-0.5B Q4 uses ~0.8-1GB; 2GB gives headroom for prompt buffers.
+    mem_limit: 2g
+    mem_reservation: 512m
+
   app:
     build:
       context: .
@@ -9,10 +24,15 @@ services:
     restart: unless-stopped
     env_file:
       - .env.production
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - TRANSLATE_MODEL=qwen2.5:0.5b-instruct-q4_K_M
     volumes:
       - app-data:/app/prisma
     expose:
       - "3000"
+    depends_on:
+      - ollama
     networks:
       - lavanews-net
 
@@ -31,6 +51,7 @@ services:
 
 volumes:
   app-data:
+  ollama-models:
 
 networks:
   lavanews-net:

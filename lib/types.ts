@@ -27,7 +27,9 @@ export interface EventStory {
   id: string;
   category: string;
   title: string;
+  titleZh: string;       // LLM-translated headline; empty if not yet translated
   summary: string;
+  summaryZh: string;
   firstSeenDisplay: string;
   updatedMin: number;
   sourceCount: number;
@@ -39,10 +41,12 @@ export interface EventStory {
   articles: {
     id: string;
     title: string;
+    titleZh: string;
     source: string;
     sourceName: string;
     url: string;
     summary: string;
+    summaryZh: string;
     channel?: Channel | null;
   }[];
 }

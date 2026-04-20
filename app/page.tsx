@@ -89,15 +89,29 @@ function ScoreBar({ meta }: { meta: ScoreMeta }) {
   );
 }
 
+type Lang = 'zh' | 'en';
+
+// Display helpers — prefer Chinese translation when lang=zh, fall back to original.
+function pickTitle(s: { title: string; titleZh: string }, lang: Lang): string {
+  return lang === 'zh' && s.titleZh ? s.titleZh : s.title;
+}
+function pickSummary(s: { summary: string; summaryZh: string }, lang: Lang): string {
+  return lang === 'zh' && s.summaryZh ? s.summaryZh : s.summary;
+}
+
 // --- Top Bar ---
 function TopBar({
   storyCount,
   lastSync,
   onSync,
+  lang,
+  onLangToggle,
 }: {
   storyCount: number;
   lastSync: string;
   onSync: () => void;
+  lang: Lang;
+  onLangToggle: () => void;
 }) {
   return (
     <header style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '10px 20px', borderBottom: '1px solid var(--rule)' }}>
@@ -113,6 +127,19 @@ function TopBar({
         <span><span style={{ color: 'var(--claret)' }}>●</span> LIVE · {lastSync}</span><span>·</span>
         <span>{toLocalDate(new Date())}</span>
       </div>
+      <button
+        onClick={onLangToggle}
+        title={lang === 'zh' ? '切换到原文' : '切换到中文翻译'}
+        style={{
+          fontFamily: 'var(--sans)', fontSize: 11, padding: '5px 12px',
+          border: '1px solid var(--rule)',
+          background: lang === 'zh' ? 'var(--claret)' : 'transparent',
+          color: lang === 'zh' ? 'var(--paper)' : 'var(--ink-2)',
+          cursor: 'pointer',
+        }}
+      >
+        {lang === 'zh' ? '中文' : 'EN'}
+      </button>
       <button
         onClick={onSync}
         style={{ fontFamily: 'var(--sans)', fontSize: 11, padding: '5px 12px', border: '1px solid var(--rule)', color: 'var(--claret)', cursor: 'pointer' }}
@@ -260,10 +287,12 @@ function FeedPane({
   stories,
   selectedId,
   onSelect,
+  lang,
 }: {
   stories: (EventStory & { meta: ScoreMeta })[];
   selectedId: string;
   onSelect: (id: string) => void;
+  lang: Lang;
 }) {
   return (
     <div className="terminal-feed">
@@ -307,7 +336,7 @@ function FeedPane({
                 fontFamily: 'var(--serif)', fontWeight: 700, fontSize: 14,
                 lineHeight: 1.28, margin: '2px 0 6px', color: 'var(--ink)',
               }}>
-                {s.title}
+                {pickTitle(s, lang)}
               </h4>
               <ChannelCloud channels={s.channels} max={9} size="xs" />
               <div style={{
@@ -336,7 +365,7 @@ function FeedPane({
 }
 
 // --- Timeline Playback ---
-function TimelinePlayback({ story }: { story: EventStory & { meta: ScoreMeta } }) {
+function TimelinePlayback({ story, lang }: { story: EventStory & { meta: ScoreMeta }; lang: Lang }) {
   const [step, setStep] = useState(story.timeline.length);
   const [playing, setPlaying] = useState(false);
   const tlen = story.timeline.length;
@@ -354,7 +383,7 @@ function TimelinePlayback({ story }: { story: EventStory & { meta: ScoreMeta } }
 
   return (
     <div style={{ padding: '24px 28px' }}>
-      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 22, margin: '0 0 18px', fontWeight: 800 }}>{story.title}</h2>
+      <h2 style={{ fontFamily: 'var(--serif)', fontSize: 22, margin: '0 0 18px', fontWeight: 800 }}>{pickTitle(story, lang)}</h2>
       <div style={{
         display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 30,
         padding: '22px 24px', border: '1px solid var(--rule)', alignItems: 'center', marginBottom: 24,
@@ -475,7 +504,7 @@ function TimelinePlayback({ story }: { story: EventStory & { meta: ScoreMeta } }
 }
 
 // --- Status Bar ---
-function StatusBar({ stories, selected }: { stories: (EventStory & { meta: ScoreMeta })[]; selected: (EventStory & { meta: ScoreMeta }) | null }) {
+function StatusBar({ stories, selected, lang }: { stories: (EventStory & { meta: ScoreMeta })[]; selected: (EventStory & { meta: ScoreMeta }) | null; lang: Lang }) {
   const totalCh = new Set(stories.flatMap(s => s.channels.map(c => c.id))).size;
   return (
     <div style={{
@@ -486,7 +515,7 @@ function StatusBar({ stories, selected }: { stories: (EventStory & { meta: Score
       <span>当前 {stories.length} 条故事</span><span>·</span>
       <span>覆盖 {totalCh} 家渠道</span><span>·</span>
       {selected && (
-        <span>选中 <span style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>{selected.title.slice(0, 30)}...</span></span>
+        <span>选中 <span style={{ color: 'var(--ink-2)', fontFamily: 'var(--sans)' }}>{pickTitle(selected, lang).slice(0, 30)}...</span></span>
       )}
       <div style={{ flex: 1 }} />
       <span>VALUE = (T1·3 + T2·2 + T3·1) × 2.2 · cap 100</span>
@@ -512,6 +541,7 @@ export default function Home() {
   const [dateStart, setDateStart] = useState(toLocalDate(threeMonthsAgo));
   const [dateEnd, setDateEnd] = useState(toLocalDate(today));
   const [minScore, setMinScore] = useState(20);
+  const [lang, setLang] = useState<Lang>('zh');
 
   // Fetch events from API with current filters (H4: added error handling)
   const fetchEvents = () => {
@@ -613,7 +643,13 @@ export default function Home() {
 
   return (
     <div className="terminal-layout">
-      <TopBar storyCount={stories.length} lastSync={syncing ? '同步中...' : lastSync} onSync={handleSync} />
+      <TopBar
+        storyCount={stories.length}
+        lastSync={syncing ? '同步中...' : lastSync}
+        onSync={handleSync}
+        lang={lang}
+        onLangToggle={() => setLang(l => (l === 'zh' ? 'en' : 'zh'))}
+      />
       <SubBar
         categories={data.categories}
         selectedCategory={category}
@@ -632,6 +668,7 @@ export default function Home() {
             stories={stories}
             selectedId={selected?.id || ''}
             onSelect={id => { setSelectedId(id); setRightPane('channels'); }}
+            lang={lang}
           />
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 14 }}>
@@ -680,13 +717,21 @@ export default function Home() {
                   fontFamily: 'var(--serif)', fontWeight: 900, fontSize: 34,
                   lineHeight: 1.12, letterSpacing: '-0.015em', margin: '0 0 14px',
                 }}>
-                  {selected.title}
+                  {pickTitle(selected, lang)}
                 </h1>
+                {lang === 'zh' && selected.titleZh && selected.titleZh !== selected.title && (
+                  <div style={{
+                    fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--ink-3)',
+                    marginTop: -10, marginBottom: 14,
+                  }}>
+                    原文：{selected.title}
+                  </div>
+                )}
                 <p style={{
                   fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.6,
                   color: 'var(--ink-2)', margin: '0 0 24px',
                 }}>
-                  {selected.summary}
+                  {pickSummary(selected, lang)}
                 </p>
 
                 {/* Score row */}
@@ -732,8 +777,8 @@ export default function Home() {
                         </div>
                         {article ? (
                           <>
-                            <div style={{ fontFamily: 'var(--serif)', fontSize: 12.5, lineHeight: 1.4, color: 'var(--ink)' }}>{article.title}</div>
-                            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-3)' }}>{article.summary.slice(0, 60)}...</div>
+                            <div style={{ fontFamily: 'var(--serif)', fontSize: 12.5, lineHeight: 1.4, color: 'var(--ink)' }}>{pickTitle(article, lang)}</div>
+                            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-3)' }}>{pickSummary(article, lang).slice(0, 60)}...</div>
                           </>
                         ) : (
                           <div style={{ fontFamily: 'var(--serif)', fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>(标题未采集)</div>
@@ -752,7 +797,7 @@ export default function Home() {
             )}
 
             {/* Timeline pane */}
-            {rightPane === 'timeline' && <TimelinePlayback story={selected} />}
+            {rightPane === 'timeline' && <TimelinePlayback story={selected} lang={lang} />}
           </div>
         ) : (
           <div style={{
@@ -763,7 +808,7 @@ export default function Home() {
           </div>
         )}
       </div>
-      <StatusBar stories={stories} selected={selected} />
+      <StatusBar stories={stories} selected={selected} lang={lang} />
     </div>
   );
 }
