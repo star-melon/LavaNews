@@ -3,8 +3,10 @@
 import { prisma } from './db';
 import { computeScore } from './scoring';
 
-// Minimum score threshold for inclusion
-const MIN_SCORE = 20;
+// Minimum score threshold for DB retention.
+// Keep low-score events in DB so the UI slider (min 3) can surface them;
+// only events that can never satisfy the slider are pruned.
+const MIN_SCORE = 3;
 
 // Max age in days for event retention (3 months ≈ 90 days)
 const MAX_AGE_DAYS = 90;

@@ -122,7 +122,6 @@ function SubBar({
   minScore: number;
   onMinScoreChange: (v: number) => void;
 }) {
-  const scorePresets = [20, 40, 60, 80];
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 20px', borderBottom: '1px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 11 }}>
       <span className="kicker" style={{ fontSize: 10 }}>板块</span>
@@ -185,21 +184,29 @@ function SubBar({
       />
       <div style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>最低分</span>
-      <div style={{ display: 'flex', gap: 4 }}>
-        {scorePresets.map(v => (
-          <button
-            key={v}
-            onClick={() => onMinScoreChange(v)}
-            style={{
-              padding: '3px 10px', fontSize: 11,
-              background: minScore === v ? 'var(--claret)' : 'transparent',
-              color: minScore === v ? 'var(--paper)' : 'var(--ink-3)',
-              border: `1px solid ${minScore === v ? 'var(--claret)' : 'var(--rule)'}`,
-            }}
-          >
-            {v}+
-          </button>
-        ))}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
+        <span className="mono" style={{ fontSize: 10, color: 'var(--ink-3)', width: 16, textAlign: 'right' }}>3</span>
+        <input
+          type="range"
+          min={3}
+          max={90}
+          step={1}
+          value={minScore}
+          onChange={e => onMinScoreChange(+e.target.value)}
+          style={{ flex: 1, accentColor: 'var(--claret)', cursor: 'pointer' }}
+          aria-label="最低分阈值"
+        />
+        <span className="mono" style={{ fontSize: 10, color: 'var(--ink-3)', width: 20 }}>90</span>
+        <span
+          className="mono"
+          style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--claret)',
+            minWidth: 36, textAlign: 'center',
+            padding: '2px 6px', border: '1px solid var(--claret)',
+          }}
+        >
+          {minScore}+
+        </span>
       </div>
       <div style={{ flex: 1 }} />
       <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--sans)' }}>
