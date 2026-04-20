@@ -1,20 +1,25 @@
 version: '3.8'
 
 services:
-  ollama:
-    image: ollama/ollama:latest
-    container_name: lavanews-ollama
+  translate:
+    # LibreTranslate wraps Helsinki-NLP OPUS-MT models (en->zh here).
+    # Purpose-built NMT: no hallucination, very small memory footprint.
+    image: libretranslate/libretranslate:latest
+    container_name: lavanews-translate
     restart: unless-stopped
+    environment:
+      - LT_LOAD_ONLY=en,zh
+      - LT_CHAR_LIMIT=2000
+      - LT_DISABLE_WEB_UI=true
+      - LT_THREADS=2
     volumes:
-      - ollama-models:/root/.ollama
+      - translate-models:/home/libretranslate/.local/share/argos-translate
     expose:
-      - "11434"
+      - "5000"
     networks:
       - lavanews-net
-    # Cap memory so a runaway model can't OOM the 8GB box.
-    # Qwen2.5-1.5B Q4 uses ~1.5-2GB; 3GB gives headroom for prompt buffers.
-    mem_limit: 3g
-    mem_reservation: 1g
+    mem_limit: 2g
+    mem_reservation: 512m
 
   app:
     build:
@@ -25,14 +30,13 @@ services:
     env_file:
       - .env.production
     environment:
-      - OLLAMA_URL=http://ollama:11434
-      - TRANSLATE_MODEL=qwen2.5:1.5b-instruct-q4_K_M
+      - TRANSLATE_URL=http://translate:5000
     volumes:
       - app-data:/app/prisma
     expose:
       - "3000"
     depends_on:
-      - ollama
+      - translate
     networks:
       - lavanews-net
 
@@ -51,7 +55,7 @@ services:
 
 volumes:
   app-data:
-  ollama-models:
+  translate-models:
 
 networks:
   lavanews-net:

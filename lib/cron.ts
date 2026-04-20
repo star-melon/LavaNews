@@ -3,7 +3,7 @@
 import cron from 'node-cron';
 import { fetchAndClusterNews } from './news-fetcher';
 import { pruneOldAndLowValue } from './pruner';
-import { translatePendingArticles, ollamaHealthy } from './translator';
+import { translatePendingArticles, translatorHealthy } from './translator';
 
 let started = false;
 let activeFetch: Promise<void> | null = null;
@@ -12,8 +12,8 @@ let activeTranslate: Promise<void> | null = null;
 async function runTranslate() {
   if (activeTranslate) return activeTranslate;
   activeTranslate = (async () => {
-    if (!(await ollamaHealthy())) {
-      console.warn('[translator] Ollama not reachable or model missing — skipping translation');
+    if (!(await translatorHealthy())) {
+      console.warn('[translator] translate service not reachable or en→zh pair missing — skipping');
       return;
     }
     const r = await translatePendingArticles(200);
@@ -51,7 +51,7 @@ export function startCronJobs() {
   });
 
   // Background translation pass every 20 minutes to catch anything
-  // that the post-fetch pass missed (e.g. Ollama warming up).
+  // that the post-fetch pass missed (e.g. translate service warming up).
   cron.schedule('*/20 * * * *', async () => {
     await runTranslate();
   });
