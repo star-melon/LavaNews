@@ -183,4 +183,103 @@
   .terminal-detail {
     overflow: auto;
   }
+
+  /* Desktop default layout shape — mobile media query overrides below. */
+  .main-split {
+    display: grid;
+    grid-template-columns: 440px 1fr;
+    overflow: hidden;
+  }
 }
+
+/*
+ * Mobile adaptation — preserves the desktop design and only adjusts
+ * layout shape so everything remains reachable on narrow screens.
+ * - Two-pane grid stacks vertically (feed top, detail below)
+ * - TopBar and SubBar become horizontally scrollable strips
+ * - Detail score row collapses from 6 columns to 3
+ * - Channel matrix already auto-fills so no change needed
+ */
+@media (max-width: 768px) {
+  .terminal-layout {
+    height: auto;
+    min-height: 100vh;
+  }
+  .main-split {
+    grid-template-columns: 1fr;
+    overflow: visible;
+  }
+  .terminal-feed {
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    max-height: 55vh;
+  }
+  .terminal-detail {
+    overflow: visible;
+  }
+
+  /* TopBar: allow status meta to wrap onto its own row */
+  .top-bar {
+    flex-wrap: wrap !important;
+    padding: 8px 12px !important;
+    gap: 10px !important;
+  }
+  .top-bar-status {
+    font-size: 10px !important;
+    gap: 8px !important;
+    flex-wrap: wrap;
+  }
+
+  /* SubBar: horizontal scroll strip */
+  .sub-bar {
+    overflow-x: auto;
+    flex-wrap: nowrap !important;
+    white-space: nowrap;
+    padding: 8px 12px !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .sub-bar > * {
+    flex: none;
+  }
+  /* Score slider needs a floor width on mobile so thumb stays usable */
+  .minscore-slider {
+    min-width: 160px !important;
+  }
+
+  /* Detail pane: tighten padding, collapse score row to 3 columns */
+  .detail-pane {
+    padding: 18px 16px !important;
+  }
+  .detail-title {
+    font-size: 24px !important;
+  }
+  .detail-score-row {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+  .detail-score-row > div {
+    border-right: 1px solid var(--rule) !important;
+    border-bottom: 1px solid var(--rule) !important;
+    padding: 10px 12px !important;
+  }
+  .detail-score-row > div:nth-child(3n) {
+    border-right: none !important;
+  }
+  .detail-score-row > div:nth-last-child(-n+3) {
+    border-bottom: none !important;
+  }
+  .detail-score-row > div .mono-big {
+    font-size: 18px !important;
+  }
+
+  /* Feed list rows: slightly smaller numbers on mobile */
+  .terminal-feed button {
+    padding: 12px 12px !important;
+  }
+
+  /* StatusBar: allow wrap rather than overflow */
+  .status-bar {
+    flex-wrap: wrap !important;
+    gap: 8px 14px !important;
+  }
+}
+

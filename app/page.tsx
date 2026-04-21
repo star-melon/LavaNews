@@ -114,7 +114,7 @@ function TopBar({
   onLangToggle: () => void;
 }) {
   return (
-    <header style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '10px 20px', borderBottom: '1px solid var(--rule)' }}>
+    <header className="top-bar" style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '10px 20px', borderBottom: '1px solid var(--rule)' }}>
       <div style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 900, letterSpacing: '-0.02em' }}>
         <span style={{ color: 'var(--claret)' }}>Lava</span>News
       </div>
@@ -122,7 +122,7 @@ function TopBar({
         TERMINAL · V.2
       </span>
       <div style={{ flex: 1 }} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
+      <div className="top-bar-status" style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-3)' }}>
         <span>24 渠道</span><span>·</span>
         <span><span style={{ color: 'var(--claret)' }}>●</span> LIVE · {lastSync}</span><span>·</span>
         <span>{toLocalDate(new Date())}</span>
@@ -181,7 +181,7 @@ function SubBar({
   onMinScoreChange: (v: number) => void;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 20px', borderBottom: '1px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 11 }}>
+    <div className="sub-bar" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '8px 20px', borderBottom: '1px solid var(--rule)', fontFamily: 'var(--sans)', fontSize: 11 }}>
       <span className="kicker" style={{ fontSize: 10 }}>板块</span>
       <div style={{ display: 'flex', gap: 4 }}>
         {categories.map(c => (
@@ -242,7 +242,7 @@ function SubBar({
       />
       <div style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>最低分</span>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
+      <div className="minscore-slider" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
         <span className="mono" style={{ fontSize: 10, color: 'var(--ink-3)', width: 16, textAlign: 'right' }}>3</span>
         <input
           type="range"
@@ -507,7 +507,7 @@ function TimelinePlayback({ story, lang }: { story: EventStory & { meta: ScoreMe
 function StatusBar({ stories, selected, lang }: { stories: (EventStory & { meta: ScoreMeta })[]; selected: (EventStory & { meta: ScoreMeta }) | null; lang: Lang }) {
   const totalCh = new Set(stories.flatMap(s => s.channels.map(c => c.id))).size;
   return (
-    <div style={{
+    <div className="status-bar" style={{
       display: 'flex', alignItems: 'center', gap: 18, padding: '7px 20px',
       borderTop: '1px solid var(--rule)', fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--ink-3)',
     }}>
@@ -662,7 +662,7 @@ export default function Home() {
         minScore={minScore}
         onMinScoreChange={setMinScore}
       />
-      <div style={{ display: 'grid', gridTemplateColumns: '440px 1fr', overflow: 'hidden' }}>
+      <div className="main-split">
         {stories.length > 0 ? (
           <FeedPane
             stories={stories}
@@ -706,14 +706,14 @@ export default function Home() {
 
             {/* Channels detail pane */}
             {rightPane === 'channels' && (
-              <div style={{ padding: '24px 28px' }}>
+              <div className="detail-pane" style={{ padding: '24px 28px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                   <span className="kicker claret">{selected.category}</span>
                   <span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
                     首发 {formatFirstSeen(selected.firstSeen)} · {formatAgo(selected.updatedMin)}
                   </span>
                 </div>
-                <h1 style={{
+                <h1 className="detail-title" style={{
                   fontFamily: 'var(--serif)', fontWeight: 900, fontSize: 34,
                   lineHeight: 1.12, letterSpacing: '-0.015em', margin: '0 0 14px',
                 }}>
@@ -752,7 +752,7 @@ export default function Home() {
                 )}
 
                 {/* Score row */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', border: '1px solid var(--rule)', marginBottom: 28 }}>
+                <div className="detail-score-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', border: '1px solid var(--rule)', marginBottom: 28 }}>
                   {[
                     { l: 'VALUE', v: selected.meta.score, sub: '/100', hi: true },
                     { l: 'T1 权威', v: selected.meta.t1, sub: '×3' },
