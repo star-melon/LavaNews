@@ -1,7 +1,7 @@
 // app/page.tsx — LavaNews Terminal Layout
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { EventStory, Channel, ScoreMeta } from '@/lib/types';
 import { computeScoreMeta } from '@/lib/scoring';
 
@@ -44,6 +44,308 @@ function formatAgo(min: number): string {
   const months = Math.floor(days / 30);
   if (months < 12) return `${months} 个月前`;
   return `${Math.floor(days / 365)} 年前`;
+}
+
+// --- Date range picker (Meta Ads style) ---
+function parseLocalDate(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+function addDays(d: Date, n: number): Date {
+  const r = new Date(d); r.setDate(r.getDate() + n); return r;
+}
+function formatCN(s: string): string {
+  if (!s) return '';
+  const [y, m, d] = s.split('-').map(Number);
+  return `${y}年${m}月${d}日`;
+}
+function daysInMonth(year: number, month: number): number {
+  return new Date(year, month + 1, 0).getDate();
+}
+// Monday-start offset (Mon=0, ..., Sun=6)
+function mondayOffset(year: number, month: number): number {
+  const js = new Date(year, month, 1).getDay();
+  return (js + 6) % 7;
+}
+function monthGrid(year: number, month: number): (string | null)[] {
+  const cells: (string | null)[] = [];
+  const off = mondayOffset(year, month);
+  const total = daysInMonth(year, month);
+  for (let i = 0; i < off; i++) cells.push(null);
+  for (let d = 1; d <= total; d++) cells.push(toLocalDate(new Date(year, month, d)));
+  while (cells.length < 42) cells.push(null);
+  return cells;
+}
+
+type Preset = { key: string; label: string; compute: () => [string, string] };
+
+function buildPresets(): Preset[] {
+  const today = new Date();
+  const todayStr = toLocalDate(today);
+  const yesterday = addDays(today, -1);
+  const dow = (today.getDay() + 6) % 7; // Mon=0
+  const sow = addDays(today, -dow);
+  const prevWeekEnd = addDays(sow, -1);
+  const prevWeekStart = addDays(sow, -7);
+  const som = new Date(today.getFullYear(), today.getMonth(), 1);
+  const prevMonthEnd = addDays(som, -1);
+  const prevMonthStart = new Date(prevMonthEnd.getFullYear(), prevMonthEnd.getMonth(), 1);
+  return [
+    { key: 'today', label: '今天', compute: () => [todayStr, todayStr] },
+    { key: 'yesterday', label: '昨天', compute: () => [toLocalDate(yesterday), toLocalDate(yesterday)] },
+    { key: 'today_and_yesterday', label: '今天和昨天', compute: () => [toLocalDate(yesterday), todayStr] },
+    { key: 'last_7', label: '过去 7 天', compute: () => [toLocalDate(addDays(today, -6)), todayStr] },
+    { key: 'last_14', label: '过去 14 天', compute: () => [toLocalDate(addDays(today, -13)), todayStr] },
+    { key: 'last_28', label: '过去 28 天', compute: () => [toLocalDate(addDays(today, -27)), todayStr] },
+    { key: 'last_30', label: '过去 30 天', compute: () => [toLocalDate(addDays(today, -29)), todayStr] },
+    { key: 'this_week', label: '本周', compute: () => [toLocalDate(sow), todayStr] },
+    { key: 'last_week', label: '上周', compute: () => [toLocalDate(prevWeekStart), toLocalDate(prevWeekEnd)] },
+    { key: 'this_month', label: '本月', compute: () => [toLocalDate(som), todayStr] },
+    { key: 'last_month', label: '上个月', compute: () => [toLocalDate(prevMonthStart), toLocalDate(prevMonthEnd)] },
+    { key: 'maximum', label: '最大日期范围', compute: () => [toLocalDate(addDays(today, -365)), todayStr] },
+  ];
+}
+function matchPreset(start: string, end: string, presets: Preset[]): Preset | null {
+  for (const p of presets) {
+    const [s, e] = p.compute();
+    if (s === start && e === end) return p;
+  }
+  return null;
+}
+
+function DateRangePicker({
+  start, end, onChange,
+}: {
+  start: string;
+  end: string;
+  onChange: (start: string, end: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [tempStart, setTempStart] = useState(start);
+  const [tempEnd, setTempEnd] = useState(end);
+  const [selectingSecond, setSelectingSecond] = useState(false);
+  const [hover, setHover] = useState<string | null>(null);
+  const presets = useMemo(() => buildPresets(), []);
+
+  const initial = parseLocalDate(start || toLocalDate(new Date()));
+  const [viewYear, setViewYear] = useState(initial.getFullYear());
+  const [viewMonth, setViewMonth] = useState(initial.getMonth());
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTempStart(start);
+      setTempEnd(end);
+      setSelectingSecond(false);
+      setHover(null);
+      const d = parseLocalDate(start || toLocalDate(new Date()));
+      setViewYear(d.getFullYear());
+      setViewMonth(d.getMonth());
+    }
+  }, [open, start, end]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const activePreset = matchPreset(start, end, presets);
+  const label = activePreset ? activePreset.label : '自定义';
+
+  const handleDay = (s: string) => {
+    if (!selectingSecond) {
+      setTempStart(s); setTempEnd(s); setSelectingSecond(true);
+    } else {
+      if (s < tempStart) { setTempEnd(tempStart); setTempStart(s); }
+      else setTempEnd(s);
+      setSelectingSecond(false);
+    }
+  };
+  const applyPreset = (p: Preset) => {
+    const [s, e] = p.compute();
+    setTempStart(s); setTempEnd(e); setSelectingSecond(false);
+    const d = parseLocalDate(s);
+    setViewYear(d.getFullYear()); setViewMonth(d.getMonth());
+  };
+  const commit = () => { onChange(tempStart, tempEnd); setOpen(false); };
+  const nextMonth = () => { const d = new Date(viewYear, viewMonth + 1, 1); setViewYear(d.getFullYear()); setViewMonth(d.getMonth()); };
+  const prevMonth = () => { const d = new Date(viewYear, viewMonth - 1, 1); setViewYear(d.getFullYear()); setViewMonth(d.getMonth()); };
+
+  const todayStr = toLocalDate(new Date());
+  const previewStart = selectingSecond && hover ? (hover < tempStart ? hover : tempStart) : tempStart;
+  const previewEnd = selectingSecond && hover ? (hover < tempStart ? tempStart : hover) : tempEnd;
+
+  const renderMonth = (year: number, month: number) => {
+    const cells = monthGrid(year, month);
+    return (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+          {month + 1} 月 {year}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', fontSize: 10, color: 'var(--ink-3)', marginBottom: 2 }}>
+          {['一','二','三','四','五','六','日'].map(w => (
+            <div key={w} style={{ textAlign: 'center', padding: '3px 0' }}>周{w}</div>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+          {cells.map((c, i) => {
+            if (!c) return <div key={i} style={{ height: 28 }} />;
+            const isFuture = c > todayStr;
+            const isStart = c === previewStart;
+            const isEnd = c === previewEnd;
+            const inRange = !isFuture && c >= previewStart && c <= previewEnd;
+            const endpoint = (isStart || isEnd) && !isFuture;
+            return (
+              <button
+                key={i}
+                onClick={() => { if (!isFuture) handleDay(c); }}
+                onMouseEnter={() => { if (!isFuture) setHover(c); }}
+                onMouseLeave={() => setHover(prev => (prev === c ? null : prev))}
+                disabled={isFuture}
+                style={{
+                  height: 28,
+                  fontSize: 12,
+                  fontFamily: 'var(--mono)',
+                  background: inRange && !endpoint ? 'rgba(153,15,61,0.12)' : 'transparent',
+                  color: isFuture ? 'var(--ink-4)' : endpoint ? 'var(--paper)' : 'var(--ink)',
+                  position: 'relative',
+                  cursor: isFuture ? 'not-allowed' : 'pointer',
+                  padding: 0,
+                  border: 0,
+                  opacity: isFuture ? 0.45 : 1,
+                }}
+              >
+                {endpoint && (
+                  <span style={{
+                    position: 'absolute', inset: '1px 3px',
+                    background: 'var(--claret)', borderRadius: 2, zIndex: 0,
+                  }} />
+                )}
+                <span style={{ position: 'relative', zIndex: 1 }}>
+                  {parseInt(c.split('-')[2], 10)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const nextViewYear = viewMonth === 11 ? viewYear + 1 : viewYear;
+  const nextViewMonth = viewMonth === 11 ? 0 : viewMonth + 1;
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="drp-trigger"
+        style={{
+          fontFamily: 'var(--sans)', fontSize: 11, padding: '4px 10px',
+          border: '1px solid var(--rule)', background: 'var(--paper)',
+          color: 'var(--ink)', cursor: 'pointer',
+          display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap',
+        }}
+      >
+        <span style={{ fontWeight: 600 }}>{label}:</span>
+        <span className="mono" style={{ fontSize: 11 }}>
+          {formatCN(start)} – {formatCN(end)}
+        </span>
+        <span style={{ color: 'var(--ink-3)', fontSize: 9 }}>▼</span>
+      </button>
+
+      {open && (
+        <div
+          className="drp-popover"
+          style={{
+            position: 'absolute', top: 'calc(100% + 4px)', left: 0, zIndex: 50,
+            background: 'var(--paper)', border: '1px solid var(--rule)',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.14)',
+            display: 'flex', minWidth: 620,
+            fontFamily: 'var(--sans)',
+          }}
+        >
+          <div
+            className="drp-presets"
+            style={{
+              width: 150, borderRight: '1px solid var(--rule)',
+              padding: 8, maxHeight: 360, overflowY: 'auto',
+            }}
+          >
+            {presets.map(p => {
+              const isActive = matchPreset(tempStart, tempEnd, [p]) !== null;
+              return (
+                <button
+                  key={p.key}
+                  onClick={() => applyPreset(p)}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left',
+                    padding: '6px 10px', fontSize: 12,
+                    color: isActive ? 'var(--claret)' : 'var(--ink)',
+                    fontWeight: isActive ? 600 : 400,
+                    background: isActive ? 'rgba(153,15,61,0.08)' : 'transparent',
+                    cursor: 'pointer', border: 0, borderRadius: 2,
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ flex: 1, padding: 12, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+              <button
+                onClick={prevMonth}
+                style={{ padding: '2px 8px', cursor: 'pointer', fontSize: 16, border: 0, background: 'transparent', color: 'var(--ink-2)' }}
+                aria-label="上个月"
+              >‹</button>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={nextMonth}
+                style={{ padding: '2px 8px', cursor: 'pointer', fontSize: 16, border: 0, background: 'transparent', color: 'var(--ink-2)' }}
+                aria-label="下个月"
+              >›</button>
+            </div>
+            <div className="drp-months" style={{ display: 'flex', gap: 18 }}>
+              {renderMonth(viewYear, viewMonth)}
+              {renderMonth(nextViewYear, nextViewMonth)}
+            </div>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--rule)',
+            }}>
+              <span className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
+                {formatCN(tempStart)} – {formatCN(tempEnd)}
+              </span>
+              <div style={{ flex: 1 }} />
+              <button
+                onClick={() => setOpen(false)}
+                style={{
+                  padding: '5px 14px', fontSize: 11, border: '1px solid var(--rule)',
+                  background: 'transparent', cursor: 'pointer',
+                }}
+              >取消</button>
+              <button
+                onClick={commit}
+                style={{
+                  padding: '5px 14px', fontSize: 11,
+                  border: '1px solid var(--claret)', background: 'var(--claret)',
+                  color: 'var(--paper)', cursor: 'pointer',
+                }}
+              >更新</button>
+            </div>
+            <div style={{ marginTop: 6, fontSize: 10, color: 'var(--ink-3)' }}>
+              时区：北京时间
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // --- Shared Components ---
@@ -106,12 +408,14 @@ function TopBar({
   onSync,
   lang,
   onLangToggle,
+  syncing,
 }: {
   storyCount: number;
   lastSync: string;
   onSync: () => void;
   lang: Lang;
   onLangToggle: () => void;
+  syncing: boolean;
 }) {
   return (
     <header className="top-bar" style={{ display: 'flex', alignItems: 'center', gap: 18, padding: '10px 20px', borderBottom: '1px solid var(--rule)' }}>
@@ -142,9 +446,18 @@ function TopBar({
       </button>
       <button
         onClick={onSync}
-        style={{ fontFamily: 'var(--sans)', fontSize: 11, padding: '5px 12px', border: '1px solid var(--rule)', color: 'var(--claret)', cursor: 'pointer' }}
+        disabled={syncing}
+        style={{
+          fontFamily: 'var(--sans)', fontSize: 11, padding: '5px 12px',
+          border: '1px solid var(--rule)',
+          color: syncing ? 'var(--ink-3)' : 'var(--claret)',
+          cursor: syncing ? 'not-allowed' : 'pointer',
+          opacity: syncing ? 0.7 : 1,
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+        }}
       >
-        同步
+        {syncing && <span className="spinner" style={{ width: 11, height: 11, borderWidth: 1.5 }} />}
+        {syncing ? '同步中' : '同步'}
       </button>
     </header>
   );
@@ -176,7 +489,7 @@ function SubBar({
   onSortChange: (s: string) => void;
   dateStart: string;
   dateEnd: string;
-  onDateChange: (field: 'start' | 'end', value: string) => void;
+  onDateChange: (start: string, end: string) => void;
   minScore: number;
   onMinScoreChange: (v: number) => void;
 }) {
@@ -219,26 +532,10 @@ function SubBar({
       </div>
       <div className="sub-divider" style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>日期</span>
-      <input
-        type="date"
-        value={dateStart}
-        onChange={e => onDateChange('start', e.target.value)}
-        style={{
-          fontFamily: 'var(--mono)', fontSize: 11, padding: '3px 8px',
-          background: 'transparent', color: 'var(--ink)',
-          border: '1px solid var(--rule)',
-        }}
-      />
-      <span style={{ color: 'var(--ink-3)' }}>至</span>
-      <input
-        type="date"
-        value={dateEnd}
-        onChange={e => onDateChange('end', e.target.value)}
-        style={{
-          fontFamily: 'var(--mono)', fontSize: 11, padding: '3px 8px',
-          background: 'transparent', color: 'var(--ink)',
-          border: '1px solid var(--rule)',
-        }}
+      <DateRangePicker
+        start={dateStart}
+        end={dateEnd}
+        onChange={onDateChange}
       />
       <div className="sub-divider" style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>最低分</span>
@@ -534,11 +831,12 @@ export default function Home() {
   const [lastSync, setLastSync] = useState('—');
   const [syncing, setSyncing] = useState(false);
 
-  // Date range defaults to last 3 months using local dates (L7)
+  // Date range defaults to last 30 days using local dates (matches the
+  // "过去 30 天" preset so the range picker opens with a named selection).
   const today = new Date();
-  const threeMonthsAgo = new Date(today);
-  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-  const [dateStart, setDateStart] = useState(toLocalDate(threeMonthsAgo));
+  const thirtyDaysAgo = new Date(today);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+  const [dateStart, setDateStart] = useState(toLocalDate(thirtyDaysAgo));
   const [dateEnd, setDateEnd] = useState(toLocalDate(today));
   const [minScore, setMinScore] = useState(20);
   const [lang, setLang] = useState<Lang>('zh');
@@ -568,18 +866,13 @@ export default function Home() {
       });
   };
 
-  // Initial fetch
+  // Initial load: read the DB. The backend cron already fetches RSS hourly,
+  // so per-refresh full syncs are redundant. Users can still trigger a manual
+  // sync via the 同步 button.
   useEffect(() => {
     fetchEvents();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Auto-refresh every 30s
-  useEffect(() => {
-    const interval = setInterval(fetchEvents, 30000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId]);
 
   // Refetch when filters change
   useEffect(() => {
@@ -621,11 +914,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100vh', fontFamily: 'var(--mono)', fontSize: 14, color: 'var(--ink-3)',
-      }}>
-        Loading LavaNews...
+      <div className="loading-screen">
+        <span className="spinner lg" />
+        <span>LOADING LAVANEWS…</span>
       </div>
     );
   }
@@ -643,12 +934,14 @@ export default function Home() {
 
   return (
     <div className="terminal-layout">
+      {syncing && <div className="sync-progress" aria-hidden="true" />}
       <TopBar
         storyCount={stories.length}
         lastSync={syncing ? '同步中...' : lastSync}
         onSync={handleSync}
         lang={lang}
         onLangToggle={() => setLang(l => (l === 'zh' ? 'en' : 'zh'))}
+        syncing={syncing}
       />
       <SubBar
         categories={data.categories}
@@ -658,7 +951,7 @@ export default function Home() {
         onSortChange={setSort}
         dateStart={dateStart}
         dateEnd={dateEnd}
-        onDateChange={(field, v) => { if (field === 'start') setDateStart(v); else setDateEnd(v); }}
+        onDateChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
         minScore={minScore}
         onMinScoreChange={setMinScore}
       />

@@ -149,6 +149,57 @@
     text-align: right;
   }
 
+  /* Loading spinner + sync progress bar */
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 1.5px solid var(--rule);
+    border-top-color: var(--claret);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+  }
+  .spinner.lg { width: 28px; height: 28px; border-width: 2.5px; }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .sync-progress {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: transparent;
+    overflow: hidden;
+    z-index: 999;
+    pointer-events: none;
+  }
+  .sync-progress::before {
+    content: '';
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 35%;
+    background: var(--claret);
+    animation: sync-slide 1.1s ease-in-out infinite;
+  }
+  @keyframes sync-slide {
+    0%   { left: -35%; }
+    100% { left: 100%; }
+  }
+
+  .loading-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    gap: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-3);
+    letter-spacing: 0.1em;
+  }
+
   /* Tweaks panel */
   .tweaks-toggle-btn {
     position: fixed;
@@ -290,6 +341,36 @@
   .status-bar {
     flex-wrap: wrap !important;
     gap: 8px 14px !important;
+  }
+
+  /* Date range picker: stack on mobile, single month, full-width presets */
+  .drp-trigger {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .drp-popover {
+    flex-direction: column !important;
+    min-width: unset !important;
+    width: calc(100vw - 24px) !important;
+    left: 0 !important;
+  }
+  .drp-presets {
+    width: 100% !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--rule);
+    max-height: 140px !important;
+    display: flex !important;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .drp-presets > button {
+    flex: 1 0 auto;
+    width: auto !important;
+  }
+  .drp-months {
+    flex-direction: column !important;
+    gap: 14px !important;
   }
 }
 
