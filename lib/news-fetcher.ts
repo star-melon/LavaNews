@@ -3,6 +3,7 @@
 import { prisma } from './db';
 import { findOrCreateGroup } from './cluster';
 import { pruneLowScore } from './pruner';
+import { AI_KEYWORDS, resolveCategoryForFeed } from './classifier';
 import Parser from 'rss-parser';
 
 const parser = new Parser({
@@ -87,14 +88,10 @@ const RSS_FEEDS: FeedInfo[] = [
   { url: 'https://techcrunch.com/feed/', domain: 'techcrunch.com', name: 'TechCrunch', tier: 2, hue: '#0A9B4A', aiOnly: true },
 ];
 
-// Auto-classify to AI when title matches these terms (case-insensitive).
-// Keeps general-tech feeds contributing to the AI section for major LLM releases.
-const AI_KEYWORDS = /\b(claude|anthropic|opus\s?4|sonnet\s?4|haiku\s?4|gpt-?[45]|openai|chatgpt|gemini|grok|llama|mistral|deepseek|qwen|mythos|llm|large\s+language\s+model|artificial\s+intelligence|machine\s+learning)\b/i;
-
+// Full multi-category classifier lives in ./classifier.ts. This wrapper adapts
+// its signature to the FeedInfo shape used inside this module.
 function resolveCategory(feed: FeedInfo, title: string): string | undefined {
-  if (feed.category) return feed.category;
-  if (AI_KEYWORDS.test(title)) return 'AI';
-  return undefined;
+  return resolveCategoryForFeed(feed.category, title);
 }
 
 // Fallback: auto-register channels from RSS domains if not in DB

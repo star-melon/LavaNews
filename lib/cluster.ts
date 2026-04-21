@@ -2,6 +2,26 @@
 
 import { prisma } from './db';
 
+// Category priority (higher = more specific).
+// Used when a new article joins an existing event and we need to decide
+// whether its category should replace the event's current category.
+const CATEGORY_PRIORITY: Record<string, number> = {
+  '综合': 0,
+  '科技': 1,
+  '公司': 2,
+  '市场': 3,
+  '宏观': 4,
+  '地缘': 5,
+  '能源': 6,
+  'AI':   7,
+};
+
+function shouldUpgrade(existing: string, incoming: string): boolean {
+  const a = CATEGORY_PRIORITY[existing] ?? 0;
+  const b = CATEGORY_PRIORITY[incoming] ?? 0;
+  return b > a;
+}
+
 // Chinese tokenizer: split into Chinese chars, English words, numbers
 function tokenize(s: string): string[] {
   const tokens: string[] = [];
@@ -108,7 +128,7 @@ export async function findOrCreateGroup(title: string, category?: string): Promi
   if (best.score >= 0.4) {
     if (category) {
       const existing = allEvents.find(e => e.id === best.id);
-      if (existing && existing.category === '综合') {
+      if (existing && shouldUpgrade(existing.category, category)) {
         await prisma.eventGroup.update({ where: { id: best.id }, data: { category } });
       }
     }
@@ -133,7 +153,7 @@ export async function findOrCreateGroup(title: string, category?: string): Promi
   if (bestCosine >= 0.3) {
     if (category) {
       const existing = allEvents.find(e => e.id === bestId);
-      if (existing && existing.category === '综合') {
+      if (existing && shouldUpgrade(existing.category, category)) {
         await prisma.eventGroup.update({ where: { id: bestId }, data: { category } });
       }
     }
