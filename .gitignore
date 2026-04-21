@@ -66,9 +66,13 @@ test-results/
 # Claude Code local state
 .claude/
 
-# Local verification screenshots
-ai-section-verified.png
-*.screenshot.png
+# Local verification screenshots — scrub any test artifacts from repo root
+*.png
+*.jpeg
+*.jpg
+!public/**/*.png
+!public/**/*.jpeg
+!public/**/*.jpg
 
 # Next.js / TypeScript
 next-env.d.ts
