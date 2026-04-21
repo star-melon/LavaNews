@@ -199,7 +199,7 @@ function SubBar({
           </button>
         ))}
       </div>
-      <div style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
+      <div className="sub-divider" style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>排序</span>
       <div style={{ display: 'flex', gap: 4 }}>
         {SORTS.map(s => (
@@ -217,7 +217,7 @@ function SubBar({
           </button>
         ))}
       </div>
-      <div style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
+      <div className="sub-divider" style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>日期</span>
       <input
         type="date"
@@ -240,7 +240,7 @@ function SubBar({
           border: '1px solid var(--rule)',
         }}
       />
-      <div style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
+      <div className="sub-divider" style={{ width: 1, height: 18, background: 'var(--rule)', margin: '0 6px' }} />
       <span className="kicker" style={{ fontSize: 10 }}>最低分</span>
       <div className="minscore-slider" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
         <span className="mono" style={{ fontSize: 10, color: 'var(--ink-3)', width: 16, textAlign: 'right' }}>3</span>
@@ -267,7 +267,7 @@ function SubBar({
         </span>
       </div>
       <div style={{ flex: 1 }} />
-      <div style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--sans)' }}>
+      <div className="tier-legend" style={{ display: 'flex', gap: 14, fontSize: 11, color: 'var(--ink-3)', fontFamily: 'var(--sans)' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
           <span className="tier-dot t1" /> T1 ×3
         </span>
