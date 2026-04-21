@@ -99,7 +99,7 @@ export async function translatePendingArticles(maxArticles = 200): Promise<Trans
     try {
       const zhTitle = await translateOne(item.text);
       const zhSummary = item.summary && needsTranslation(item.summary)
-        ? await translateOne(item.summary.slice(0, 400))
+        ? await translateOne(item.summary.slice(0, 1800))
         : item.summary; // already Chinese or empty
 
       if (!zhTitle) {

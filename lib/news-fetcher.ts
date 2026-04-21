@@ -7,9 +7,45 @@ import Parser from 'rss-parser';
 
 const parser = new Parser({
   customFields: {
-    item: ['content', 'content:encoded', 'dc:creator'],
+    item: ['content', 'content:encoded', 'contentEncoded', 'description', 'dc:creator'],
   },
 });
+
+// Strip HTML tags + collapse whitespace so we can safely put text in the DB
+// and render it as plain text in the UI.
+function htmlToText(s: string): string {
+  return s
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Pick the richest body text RSS provides: content:encoded usually holds the
+// full-ish article HTML, content is medium, contentSnippet is a short teaser.
+function bestArticleBody(item: Record<string, unknown>): string {
+  const candidates: string[] = [
+    (item['content:encoded'] as string) || '',
+    (item.contentEncoded as string) || '',
+    (item.content as string) || '',
+    (item.description as string) || '',
+    (item.contentSnippet as string) || '',
+  ];
+  let best = '';
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const text = htmlToText(raw);
+    if (text.length > best.length) best = text;
+  }
+  return best;
+}
 
 // RSS feed sources mapped to LavaNews channels.
 // category: if set, events created/joined from this feed are tagged with it
@@ -155,7 +191,7 @@ interface PendingGroup {
           url: item.link,
           source: feed.domain,
           sourceName: feed.name,
-          summary: (item.contentSnippet || item.content || '').slice(0, 500),
+          summary: bestArticleBody(item as unknown as Record<string, unknown>).slice(0, 3000),
           imageUrl: item.enclosure?.url || '',
           publishedAt,
           groupId,

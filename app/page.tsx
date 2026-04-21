@@ -729,10 +729,27 @@ export default function Home() {
                 )}
                 <p style={{
                   fontFamily: 'var(--serif)', fontSize: 15, lineHeight: 1.6,
-                  color: 'var(--ink-2)', margin: '0 0 24px',
+                  color: 'var(--ink-2)', margin: '0 0 14px',
+                  whiteSpace: 'pre-line',
                 }}>
                   {pickSummary(selected, lang)}
                 </p>
+                {selected.articles[0]?.url && (
+                  <div style={{ marginBottom: 24 }}>
+                    <a
+                      href={selected.articles[0].url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontFamily: 'var(--sans)', fontSize: 12, color: 'var(--claret)',
+                        textDecoration: 'none', borderBottom: '1px solid var(--claret)',
+                        paddingBottom: 1,
+                      }}
+                    >
+                      阅读原文 · {selected.articles[0].sourceName || selected.articles[0].source} ↗
+                    </a>
+                  </div>
+                )}
 
                 {/* Score row */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', border: '1px solid var(--rule)', marginBottom: 28 }}>
@@ -777,8 +794,24 @@ export default function Home() {
                         </div>
                         {article ? (
                           <>
-                            <div style={{ fontFamily: 'var(--serif)', fontSize: 12.5, lineHeight: 1.4, color: 'var(--ink)' }}>{pickTitle(article, lang)}</div>
-                            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-3)' }}>{pickSummary(article, lang).slice(0, 60)}...</div>
+                            <a
+                              href={article.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                fontFamily: 'var(--serif)', fontSize: 12.5, lineHeight: 1.4,
+                                color: 'var(--ink)', textDecoration: 'none',
+                              }}
+                              onMouseEnter={e => (e.currentTarget.style.color = 'var(--claret)')}
+                              onMouseLeave={e => (e.currentTarget.style.color = 'var(--ink)')}
+                              title="点击阅读原文"
+                            >
+                              {pickTitle(article, lang)}
+                              <span className="mono" style={{ fontSize: 10, marginLeft: 4, color: 'var(--ink-3)' }}>↗</span>
+                            </a>
+                            <div style={{ fontFamily: 'var(--sans)', fontSize: 10, color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                              {pickSummary(article, lang).slice(0, 180)}{pickSummary(article, lang).length > 180 ? '...' : ''}
+                            </div>
                           </>
                         ) : (
                           <div style={{ fontFamily: 'var(--serif)', fontSize: 12, color: 'var(--ink-3)', fontStyle: 'italic' }}>(标题未采集)</div>
