@@ -830,6 +830,7 @@ export default function Home() {
   const [sort, setSort] = useState('value');
   const [lastSync, setLastSync] = useState('—');
   const [syncing, setSyncing] = useState(false);
+  const [fetching, setFetching] = useState(false);
 
   // Date range defaults to last 30 days using local dates (matches the
   // "过去 30 天" preset so the range picker opens with a named selection).
@@ -841,7 +842,8 @@ export default function Home() {
   const [minScore, setMinScore] = useState(20);
   const [lang, setLang] = useState<Lang>('zh');
 
-  // Fetch events from API with current filters (H4: added error handling)
+  // Fetch events from API with current filters. Sets `fetching` for the
+  // duration so filter-triggered reloads also drive the top progress bar.
   const fetchEvents = () => {
     const params = new URLSearchParams({
       limit: '500',
@@ -849,6 +851,7 @@ export default function Home() {
       startDate: dateStart,
       endDate: dateEnd,
     });
+    setFetching(true);
     fetch(`/api/events?${params}`)
       .then(r => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -863,7 +866,8 @@ export default function Home() {
       .catch(err => {
         console.error('fetchEvents failed:', err);
         setLoading(false);
-      });
+      })
+      .finally(() => setFetching(false));
   };
 
   // Initial load: read the DB. The backend cron already fetches RSS hourly,
@@ -874,9 +878,13 @@ export default function Home() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Refetch when filters change
+  // Refetch when filters change. Debounced so rapid slider drags don't
+  // kick off a request per tick — the progress bar then only animates
+  // once the user has settled on a value.
   useEffect(() => {
-    if (!loading) fetchEvents();
+    if (loading) return;
+    const t = setTimeout(() => fetchEvents(), 250);
+    return () => clearTimeout(t);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category, dateStart, dateEnd, minScore]);
 
@@ -934,7 +942,7 @@ export default function Home() {
 
   return (
     <div className="terminal-layout">
-      {syncing && <div className="sync-progress" aria-hidden="true" />}
+      {(syncing || fetching) && <div className="sync-progress" aria-hidden="true" />}
       <TopBar
         storyCount={stories.length}
         lastSync={syncing ? '同步中...' : lastSync}
