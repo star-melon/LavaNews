@@ -22,13 +22,50 @@ function shouldUpgrade(existing: string, incoming: string): boolean {
   return b > a;
 }
 
-// Chinese tokenizer: split into Chinese chars, English words, numbers
+// Trailing source attributions that news aggregators (Google News, feed
+// readers) glue onto headlines. They carry zero topical meaning but
+// previously dominated the overlap score, e.g. two unrelated stories
+// both ending "- Reuters" were credited for sharing that token.
+const NOISE_SUFFIX_RE =
+  /\s*[-|\u00b7\u2022]\s*(reuters|bloomberg|ft|financial times|cnn|bbc|wsj|wall street journal|ap|afp|nytimes|nyt|new york times|nikkei|cnbc|al jazeera|aljazeera|forbes|economist|guardian|the verge|techcrunch|engadget|ars technica|wired|google news|yahoo news|huffpost)\s*$/i;
+
+// Noise English words that appear in almost every headline. Matching on
+// these inflates overlap without signalling topical kinship.
+const EN_STOPWORDS = new Set([
+  'the','a','an','and','or','but','to','of','in','on','at','for','with','by',
+  'from','as','is','are','was','were','be','been','being','has','have','had',
+  'do','does','did','will','would','could','should','may','might','can','this',
+  'that','these','those','it','its','he','she','they','them','their','his','her',
+  'i','we','you','our','your','not','no','so','if','than','then','into','about',
+  'over','under','between','after','before','up','down','out','off','just','also',
+  's','re','ve','ll','d','t','m', // contractions split by apostrophe
+  // News-report boilerplate verbs — appear in headlines without conveying
+  // topical kinship. Filtering these cuts false matches on short headlines.
+  'says','said','announces','announced','reports','reported','launches','launched',
+  'unveils','unveiled','reveals','revealed','plans','set','sets','seeks','seeking',
+  'new','latest','breaking','exclusive','update','updates','amid','ahead',
+  'ahead','how','why','what','when','where','who','which',
+]);
+
+// Chinese tokenizer: split into Chinese chars + alphanumeric runs only.
+// Punctuation and single ASCII chars are dropped so they can't masquerade
+// as shared topical tokens between unrelated headlines.
 function tokenize(s: string): string[] {
+  const cleaned = s.replace(NOISE_SUFFIX_RE, '');
   const tokens: string[] = [];
-  const re = /[\u4e00-\u9fff]|[A-Za-z0-9%\.]+|\s+|[^\s]/g;
+  const re = /[\u4e00-\u9fff]|[A-Za-z0-9%\.]+/g;
   let m;
-  while ((m = re.exec(s)) !== null) tokens.push(m[0]);
-  return tokens.filter(t => t.trim().length > 0);
+  while ((m = re.exec(cleaned)) !== null) {
+    const raw = m[0];
+    // CJK char passes through unchanged
+    if (/[\u4e00-\u9fff]/.test(raw)) { tokens.push(raw); continue; }
+    const t = raw.toLowerCase();
+    // Filter: single-char ASCII (a, i, 1, 2 \u2026) and stopwords
+    if (t.length < 2) continue;
+    if (EN_STOPWORDS.has(t)) continue;
+    tokens.push(t);
+  }
+  return tokens;
 }
 
 // Compute TF-IDF vectors for a batch of texts
